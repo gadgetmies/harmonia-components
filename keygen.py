@@ -3,7 +3,8 @@
 
     python keygen.py --private-out /secure/place/harmonia-components-1.key [--key-id harmonia-components-1]
 
-Writes the private seed (base64, the value of the CI secret
+Writes the private seed (base64, the value of the repository secret
+``COMPONENTS_SIGNING_KEY``; ``sign.py`` reads it from the env var
 ``HARMONIA_COMPONENTS_SIGNING_KEY``) ONLY to ``--private-out`` (mode 0600,
 refuses to overwrite, refuses a path inside this git repository) and prints
 the key id + public key to commit as keys/<key id>.pub and to pin in the
@@ -51,7 +52,7 @@ def main(argv=None) -> int:
         fh.write(seed + "\n")
     print(f"key id: {args.key_id}")
     print(f"public key: {pub}")
-    print(f"private seed written to {out} (set it as the HARMONIA_COMPONENTS_SIGNING_KEY secret)")
+    print(f"private seed written to {out} (its content is the value of the COMPONENTS_SIGNING_KEY repository secret)")
     return 0
 
 

@@ -4,7 +4,8 @@
     HARMONIA_COMPONENTS_SIGNING_KEY=<base64 seed> python sign.py DIST [--key-id harmonia-components-1]
 
 Reads the private key (base64 of the raw 32-byte seed) ONLY from the env var
-``HARMONIA_COMPONENTS_SIGNING_KEY`` (the CI secret), writes ``manifest.sig``
+``HARMONIA_COMPONENTS_SIGNING_KEY`` (the release workflow fills it from the
+repository secret ``COMPONENTS_SIGNING_KEY``), writes ``manifest.sig``
 (base64 of the 64-byte signature over the exact manifest bytes) and ``KEY_ID``,
 and prints the public key so it can be compared with the one pinned in the app.
 """
