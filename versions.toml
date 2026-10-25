@@ -1,0 +1,88 @@
+# Pinned upstream sources for the Harmonia components. Every sha256 below was
+# recorded by downloading the exact
+# URL on 2026-10-20 (ffmpeg additionally checked against its PGP signature).
+# `fetch` refuses any download whose hash differs. To bump a version: change
+# version + url, download, record the new hash, rebuild every platform.
+#
+# [components.<name>] are what we publish; `deps` lists the [sources.<id>]
+# compiled INTO that component — every one of them is copied verbatim into the
+# component's source archive (`upstream/`), as the licences require.
+
+[components.ffmpeg]
+version = "7.1.5"
+license = "LGPL-2.1-or-later"
+attribution = "This software uses libraries from the FFmpeg project under the LGPLv2.1"
+executables = ["ffmpeg", "ffprobe"]
+libraries = []
+sources = ["ffmpeg", "lame", "opus", "libogg", "libvorbis"]
+
+[components.rubberband]
+version = "4.0.0"
+license = "GPL-2.0-or-later"
+attribution = "This product uses the Rubber Band Library audio timestretcher from Breakfast Quay"
+executables = ["rubberband"]
+libraries = []
+sources = ["rubberband", "libsndfile"]
+
+[components.taglib]
+version = "2.3.2"
+license = "LGPL-2.1-only OR MPL-1.1"
+attribution = "This software uses the TagLib library (LGPL-2.1 / MPL-1.1)"
+executables = []
+libraries = ["tag_c"]
+sources = ["taglib", "zlib"]
+
+[sources.ffmpeg]
+version = "7.1.5"
+url = "https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz"
+sha256 = "de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f"
+license_files = ["COPYING.LGPLv2.1", "LICENSE.md"]
+
+[sources.lame]
+version = "3.100"
+url = "https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz"
+sha256 = "ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e"
+license_files = ["COPYING", "LICENSE"]
+
+[sources.opus]
+version = "1.6.1"
+url = "https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz"
+sha256 = "6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1"
+license_files = ["COPYING"]
+
+[sources.libogg]
+version = "1.3.6"
+url = "https://downloads.xiph.org/releases/ogg/libogg-1.3.6.tar.xz"
+sha256 = "5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061"
+license_files = ["COPYING"]
+
+[sources.libvorbis]
+version = "1.3.7"
+url = "https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.7.tar.xz"
+sha256 = "b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b"
+license_files = ["COPYING"]
+
+[sources.rubberband]
+version = "4.0.0"
+url = "https://breakfastquay.com/files/releases/rubberband-4.0.0.tar.bz2"
+sha256 = "af050313ee63bc18b35b2e064e5dce05b276aaf6d1aa2b8a82ced1fe2f8028e9"
+license_files = ["COPYING"]
+
+[sources.libsndfile]
+version = "1.2.2"
+url = "https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz"
+sha256 = "3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e"
+license_files = ["COPYING"]
+
+[sources.taglib]
+# The release tarball bundles utfcpp (Boost licence) under 3rdparty/utfcpp.
+version = "2.3.2"
+url = "https://github.com/taglib/taglib/releases/download/v2.3.2/taglib-2.3.2.tar.gz"
+sha256 = "3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc"
+license_files = ["COPYING.LGPL", "COPYING.MPL", "3rdparty/utfcpp/LICENSE"]
+
+[sources.zlib]
+version = "1.3.2"
+url = "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz"
+sha256 = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+license_files = ["LICENSE"]
