@@ -1,0 +1,21 @@
+# Build output, build trees, download cache, local venv
+/dist/
+/release/
+/work/
+/cache/
+.venv/
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+.idea/
+
+# Private signing material: NEVER commit. Public keys live in keys/*.pub.
+*.key
+*.seed
+*.pem
+*.priv
+*.private
+*private*key*
+.env
+.env.*
