@@ -75,7 +75,7 @@ tarball bundles utfcpp (Boost Software Licence 1.0).
 - Releases are never deleted, so a release's source stays available as long as
   its binaries do.
 
-The build scripts in this repository are not yet under an open-source licence
+The build scripts in this repository are under the MIT licence
 (see [Licence of this repository](#licence-of-this-repository)).
 
 ## Where things are
@@ -241,6 +241,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ## Licence of this repository
 
-The licence of the build scripts in this repository has not been chosen yet.
-The components built here keep their own licences (above); their licence
-texts ship inside every archive.
+The build scripts in this repository (everything in it except the upstream
+sources it downloads) are licensed under the MIT licence: see
+[`LICENSE`](LICENSE). The components built here keep their own licences
+(above); their licence texts ship inside every archive.
