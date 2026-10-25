@@ -1,0 +1,315 @@
+# Build, sign, attest and publish a Harmonia component release (ffmpeg /
+# ffprobe, Rubber Band, TagLib) as a GitHub Release. See README.md and
+# MAINTAINERS.md.
+#
+# Release id = tag = YYYY.MM.DD.N (e.g. 2026.10.25.1). Start a release by
+#   - pushing that tag:  git tag 2026.10.25.1 && git push origin 2026.10.25.1
+#   - or dispatching this workflow with the release id (the tag is created on
+#     the commit the workflow ran on). Dispatch with publish=false for a dry
+#     run: build + unsigned manifest as a workflow artifact, no signing, no
+#     attestation, no GitHub Release.
+#
+# Published assets (flat, one GitHub Release per release id):
+#   manifest.json  manifest.sig  KEY_ID
+#   <component>-<version>-<platform>.tar.gz   (platform builds)
+#   <component>-<version>-source.tar.gz       (complete corresponding source)
+# Fixed URLs:
+#   https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
+#   https://github.com/<owner>/<repo>/releases/download/<release>/<file>
+name: release
+
+on:
+  push:
+    tags:
+      - "[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release id = tag, YYYY.MM.DD.N (e.g. 2026.10.25.1)"
+        required: true
+        type: string
+      publish:
+        description: "Sign, attest and publish the GitHub Release (false = dry run: build + unsigned manifest artifact only)"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.release || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE: ${{ inputs.release || github.ref_name }}
+  PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+  KEY_ID: ${{ vars.COMPONENTS_KEY_ID || secrets.COMPONENTS_KEY_ID || 'harmonia-components-1' }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check release id, signing key and tag
+        id: check
+        env:
+          HAS_SIGNING_KEY: ${{ secrets.COMPONENTS_SIGNING_KEY != '' }}
+          EVENT: ${{ github.event_name }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -eu
+          if ! printf '%s' "$RELEASE" | grep -Eq '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$'; then
+            echo "::error::release id '$RELEASE' is not YYYY.MM.DD.N"
+            exit 1
+          fi
+          if [ "$EVENT" = "workflow_dispatch" ] && git ls-remote --exit-code --tags "$REPO_URL" "refs/tags/$RELEASE" >/dev/null; then
+            echo "::error::tag $RELEASE already exists; a release id is immutable, pick the next one"
+            exit 1
+          fi
+          if [ "$PUBLISH" = "true" ]; then
+            if [ "$HAS_SIGNING_KEY" != "true" ]; then
+              echo "::error::the secret COMPONENTS_SIGNING_KEY is not set (see MAINTAINERS.md)"
+              exit 1
+            fi
+            if [ ! -s "keys/$KEY_ID.pub" ]; then
+              echo "::error::keys/$KEY_ID.pub is missing: commit the public key of COMPONENTS_KEY_ID=$KEY_ID first (see MAINTAINERS.md)"
+              exit 1
+            fi
+          fi
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t .
+
+  sources:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Source archives (upstream tarballs + build scripts + CONFIGURE.txt + changes.diff)
+        run: python build.py --sources-only --out dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: components-source
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            runner: macos-14
+            kind: macos
+          # macos-13 is retired; macos-15-intel is GitHub's Intel macOS
+          # runner. The deployment target stays 12.0 via -mmacosx-version-min.
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            kind: macos
+          - platform: windows-x86_64
+            runner: windows-latest
+            kind: windows
+          # Linux builds run in a Debian bullseye container (glibc 2.31) via
+          # `docker run` (not `container:`), so JavaScript actions stay on the
+          # host, also on the arm64 runner.
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            kind: linux
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            kind: linux
+    runs-on: ${{ matrix.runner }}
+    name: build (${{ matrix.platform }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: macOS toolchain
+        if: matrix.kind == 'macos'
+        run: |
+          # nasm: ffmpeg's x86 assembly (macos-x86_64); harmless on arm64.
+          brew install ninja pkg-config autoconf automake libtool nasm || true
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -r requirements.txt
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - name: macOS build
+        if: matrix.kind == 'macos'
+        run: python build.py --platform ${{ matrix.platform }} --out dist --no-sources
+
+      - name: MSYS2 MINGW64 toolchain
+        if: matrix.kind == 'windows'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make autoconf automake libtool diffutils tar
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-python-cryptography
+      - name: Windows build (MinGW-w64, static)
+        if: matrix.kind == 'windows'
+        shell: msys2 {0}
+        run: python build.py --platform windows-x86_64 --out dist --no-sources
+
+      - name: Linux build (Debian bullseye container)
+        if: matrix.kind == 'linux'
+        run: |
+          docker run --rm -v "$PWD":/src -w /src \
+            -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+            debian:bullseye \
+            sh ci/linux-container-build.sh /src/dist --platform ${{ matrix.platform }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: components-${{ matrix.platform }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  # Dry run (dispatch with publish=false): assemble the unsigned manifest so the
+  # archive layouts are checked, and keep the directory as a workflow artifact.
+  dry-run:
+    needs: [prepare, sources, build]
+    if: needs.prepare.outputs.publish != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: components-*
+          path: release
+          merge-multiple: true
+      - name: Assemble manifest (unsigned)
+        run: python manifest.py --release "$RELEASE" --dist release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: component-release-${{ needs.prepare.outputs.release }}-unsigned
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [prepare, sources, build]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    # Optional gate: add required reviewers to this environment in the repo
+    # settings. Repository secrets/variables are visible here too.
+    environment: components-release
+    permissions:
+      contents: write # create the tag + GitHub Release
+      id-token: write # OIDC token for the provenance attestation
+      attestations: write # store the attestation
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Refuse an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub Release $RELEASE already exists; release ids are immutable"
+            exit 1
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: components-*
+          path: release
+          merge-multiple: true
+      - name: Assemble manifest
+        run: python manifest.py --release "$RELEASE" --dist release
+      - name: Sign manifest
+        env:
+          HARMONIA_COMPONENTS_SIGNING_KEY: ${{ secrets.COMPONENTS_SIGNING_KEY }}
+        run: python sign.py release --key-id "$KEY_ID"
+      - name: Verify the whole release against keys/
+        run: python verify.py release --keys-dir keys
+      - name: Release notes
+        run: |
+          python - <<'PY'
+          import json, os
+          m = json.load(open("release/manifest.json", encoding="utf-8"))
+          repo = os.environ["GITHUB_REPOSITORY"]
+          rel = m["release"]
+          key_id = os.environ["KEY_ID"]
+          lines = [f"Harmonia components release `{rel}`, built by GitHub Actions from this tag.", ""]
+          lines += ["| component | version | licence | platforms |", "|---|---|---|---|"]
+          for c in m["components"]:
+              lines.append(f"| {c['name']} | {c['version']} | {c['license']} | {', '.join(sorted(c['builds']))} |")
+          lines += [
+              "",
+              "Every binary archive has its complete corresponding source in the matching `*-source.tar.gz` of this release.",
+              "",
+              "Verify a download (see README.md):",
+              "",
+              "```sh",
+              f"gh attestation verify <file> --repo {repo}",
+              f"python verify.py <directory with every file of this release> --keys-dir keys   # signed with key {key_id}",
+              "```",
+          ]
+          open("release-notes.md", "w", encoding="utf-8").write("\n".join(lines) + "\n")
+          PY
+      - name: Build provenance attestation
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release/*.tar.gz
+            release/manifest.json
+            release/manifest.sig
+            release/KEY_ID
+      - name: GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ needs.prepare.outputs.release }}
+          target_commitish: ${{ github.sha }}
+          name: Harmonia components ${{ needs.prepare.outputs.release }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          make_latest: "true"
+          fail_on_unmatched_files: true
+          files: |
+            release/manifest.json
+            release/manifest.sig
+            release/KEY_ID
+            release/*.tar.gz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: component-release-${{ needs.prepare.outputs.release }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 90
