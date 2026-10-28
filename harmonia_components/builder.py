@@ -26,6 +26,16 @@ _SOURCE_EXCLUDE = {
 _SOURCE_EXCLUDE_SUFFIXES = (".pyc", ".log", ".key", ".seed", ".pem", ".priv", ".private")
 
 
+# TagLib's Windows DLLs as the MinGW build names them (archive.required_payload).
+TAGLIB_C_DLLS = ("libtag_c.dll",)
+TAGLIB_DLLS = ("libtag.dll",) + TAGLIB_C_DLLS
+
+
+def taglib_dlls(bin_dir: Path) -> List[Path]:
+    """The TagLib DLLs an install put in ``bin_dir``."""
+    return sorted(p for p in bin_dir.glob("*.dll") if p.name.lower() in TAGLIB_DLLS)
+
+
 def _log(msg: str) -> None:
     print(f"[build] {msg}", flush=True)
 
@@ -136,9 +146,14 @@ class Build:
         else:  # taglib
             if osname == "windows":
                 (stage / "bin").mkdir(parents=True)
-                for name in ("tag.dll", "tag_c.dll"):
-                    dst = stage / "bin" / name
-                    shutil.copy2(inst / "bin" / name, dst)
+                # MinGW names them libtag.dll / libtag_c.dll; keep those names,
+                # libtag_c.dll imports libtag.dll by the name it was built with.
+                dlls = taglib_dlls(inst / "bin")
+                if not any(d.name in TAGLIB_C_DLLS for d in dlls):
+                    raise RuntimeError(f"no TagLib C DLL in {inst / 'bin'}: {sorted(p.name for p in (inst / 'bin').iterdir())}")
+                for src in dlls:
+                    dst = stage / "bin" / src.name
+                    shutil.copy2(src, dst)
                     payload.append(dst)
             else:
                 (stage / "lib").mkdir(parents=True)

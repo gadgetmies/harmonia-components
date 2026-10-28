@@ -4,7 +4,7 @@ Binary archive (no top-level directory)::
 
     bin/ffmpeg[.exe] bin/ffprobe[.exe]     ffmpeg
     bin/rubberband[.exe]                    rubberband
-    lib/libtag_c.<so|dylib>, lib/libtag.*   taglib (Windows: bin/tag_c.dll, bin/tag.dll)
+    lib/libtag_c.<so|dylib>, lib/libtag.*   taglib (Windows: bin/libtag_c.dll, bin/libtag.dll)
     licenses/<FILES>
     BUILD-INFO.txt
 
@@ -117,7 +117,8 @@ def required_payload(component: str, platform: str) -> List[str]:
         return [f"bin/{exe_name(platform, 'rubberband')}"]
     if component == "taglib":
         if osname == "windows":
-            return ["bin/tag_c.dll", "bin/tag.dll"]
+            # MinGW's names; libtag_c.dll imports "libtag.dll" by that name.
+            return ["bin/libtag_c.dll", "bin/libtag.dll"]
         ext = "dylib" if osname == "macos" else "so"
         return [f"lib/libtag_c.{ext}"]
     raise LayoutError(f"unknown component {component!r}")

@@ -10,4 +10,4 @@ Only public keys belong here. Private seeds are never committed (see
 
 | key id | status |
 |---|---|
-| `harmonia-components-1` | not generated yet: `harmonia-components-1.pub` will be added here |
+| `harmonia-components-1` | active (generated 2026-10-28) |
