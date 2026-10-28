@@ -131,7 +131,12 @@ def libogg(platform: str) -> List[Step]:
 
 
 def libvorbis(platform: str) -> List[Step]:
-    return cmake_steps(platform, "libvorbis", ["-DBUILD_SHARED_LIBS=OFF"])
+    extra = ["-DBUILD_SHARED_LIBS=OFF"]
+    if os_of(platform) == "linux":
+        # The CMake build leaves vorbis.pc's Libs.private (@VORBIS_LIBS@) empty,
+        # so a static link misses libm; glibc keeps it apart from libc.
+        extra.append("-DVORBIS_LIBS=-lm")
+    return cmake_steps(platform, "libvorbis", extra)
 
 
 def opus(platform: str) -> List[Step]:

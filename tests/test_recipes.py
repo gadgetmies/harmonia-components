@@ -65,6 +65,12 @@ class RecipeTest(unittest.TestCase):
         self.assertIn("-DCMAKE_INSTALL_RPATH=$ORIGIN", args("linux-arm64"))
         self.assertIn("-DCMAKE_SHARED_LIBRARY_PREFIX=", args("windows-x86_64"))
 
+    def test_static_vorbis_pc_names_libm_on_linux(self):
+        for platform in PLATFORMS:
+            with self.subTest(platform=platform):
+                configure = next(s for s in recipes.libvorbis(platform) if s.title == "libvorbis: configure").argv
+                self.assertEqual("-DVORBIS_LIBS=-lm" in configure, platform.startswith("linux"))
+
     def test_macos_deployment_target(self):
         env = recipes.base_env("macos-x86_64")
         self.assertEqual(env["MACOSX_DEPLOYMENT_TARGET"], "12.0")
