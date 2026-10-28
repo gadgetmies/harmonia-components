@@ -189,15 +189,14 @@ sha256 and layout of every file the manifest lists, and prints
 
 ## Public signing key
 
-> **Not published yet.** The production signing key has not been generated.
-> Once it is, its public key will be committed here as
-> `keys/harmonia-components-1.pub` (base64 of the raw 32-byte Ed25519 public
-> key), and the same key will be built into the Harmonia desktop app. A key is
-> trusted only if it is both in this repository and in the app.
->
-> | key id | public key (base64) | used for releases |
-> |---|---|---|
-> | `harmonia-components-1` | *to be added* | *none yet* |
+Releases are signed with the Ed25519 key below; its public key is
+`keys/harmonia-components-1.pub` (base64 of the raw 32-byte key). The Harmonia
+desktop installer build trusts every key in `keys/`, so a key is trusted only
+if it is in this repository when the app is built.
+
+| key id | public key (base64) | used for releases |
+|---|---|---|
+| `harmonia-components-1` | `+8AWR5lPJltkSxe/dy9NUaaxSjRZQ+B1uYAz0F2xGvg=` | from the first release |
 
 ## Building locally
 
