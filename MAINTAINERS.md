@@ -76,17 +76,13 @@ git commit -m "Publish the harmonia-components-1 public key"
 git push origin main
 ```
 
-## 4. Pin the same public key in the desktop app
+## 4. The desktop app picks the key up by itself
 
-In the Harmonia desktop app, add the key to `TRUSTED_KEYS` in
-`apps/desktop/component_store.py`:
-
-```python
-TRUSTED_KEYS = {"harmonia-components-1": "<public key printed by keygen.py>"}
-```
-
-A packaged app trusts only these keys, so it refuses every manifest until
-this is shipped.
+The Harmonia desktop installer build checks out this repository and builds
+every `keys/<key id>.pub` into the app it packages (`trusted-keys.json` next
+to the install marker). Nothing needs editing in the desktop source: rebuild
+the installers after step 3 and they trust the new key. An app built before
+the key was published refuses every manifest signed with it.
 
 ## 5. Cut a release
 
@@ -116,5 +112,5 @@ tarball and record its sha256), push, and cut a new release.
 
 ## Key rotation
 
-Generate `harmonia-components-2` (steps 1, 3, 4 with the new id), ship a desktop app that trusts both keys, then switch `COMPONENTS_SIGNING_KEY` + `COMPONENTS_KEY_ID` to the new key and keep `keys/harmonia-components-1.pub` for verifying old releases.
-If a private key leaks, remove it from the desktop's `TRUSTED_KEYS` at once, rotate as above, and mark the affected releases in `keys/README.md`.
+Generate `harmonia-components-2` (steps 1 and 3 with the new id), ship a desktop app built after both keys are in `keys/`, then switch `COMPONENTS_SIGNING_KEY` + `COMPONENTS_KEY_ID` to the new key and keep `keys/harmonia-components-1.pub` for verifying old releases.
+If a private key leaks, delete its `keys/<id>.pub` and rebuild the desktop installers at once, rotate as above, and mark the affected releases in `keys/README.md`.
