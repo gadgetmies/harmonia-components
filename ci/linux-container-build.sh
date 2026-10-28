@@ -13,6 +13,9 @@ shift
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
 export DEBIAN_FRONTEND=noninteractive
+# Bullseye's security updates moved to archive.debian.org when its regular
+# support ended; deb.debian.org still serves an index whose files 404.
+sed -i 's#deb.debian.org/debian-security#archive.debian.org/debian-security#' /etc/apt/sources.list
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends \
     build-essential pkg-config ninja-build nasm make autoconf automake libtool \
