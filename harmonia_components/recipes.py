@@ -269,10 +269,8 @@ def taglib(platform: str) -> List[Step]:
         extra += ["-DCMAKE_MACOSX_RPATH=ON", "-DCMAKE_INSTALL_NAME_DIR=@rpath", "-DCMAKE_INSTALL_RPATH=@loader_path"]
     elif osname == "linux":
         extra += ["-DCMAKE_INSTALL_RPATH=$ORIGIN"]
-    else:
-        # MinGW would name them libtag.dll / libtag_c.dll; the contract wants
-        # bin/tag.dll + bin/tag_c.dll (and tag_c.dll must import "tag.dll").
-        extra += ["-DCMAKE_SHARED_LIBRARY_PREFIX="]
+    # Windows (MinGW): bin/libtag.dll + bin/libtag_c.dll, which the desktop
+    # loads under that name (TagLib's CMake ignores CMAKE_SHARED_LIBRARY_PREFIX).
     return zlib(platform) + cmake_steps(platform, "taglib", extra, install_prefix="{inst}")
 
 

@@ -56,8 +56,8 @@ FFT and resampler (Apple's vDSP FFT on macOS) and with libsndfile
 
 ### TagLib: LGPL-2.1 or MPL-1.1
 
-Shared libraries `libtag` and `libtag_c` (on Windows `tag.dll` and
-`tag_c.dll`), with zlib (zlib licence) linked in statically. The TagLib
+Shared libraries `libtag` and `libtag_c` (on Windows `libtag.dll` and
+`libtag_c.dll`), with zlib (zlib licence) linked in statically. The TagLib
 tarball bundles utfcpp (Boost Software Licence 1.0).
 
 ### What every release contains

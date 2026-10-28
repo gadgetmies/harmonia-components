@@ -63,7 +63,7 @@ class RecipeTest(unittest.TestCase):
 
         self.assertIn("-DCMAKE_INSTALL_RPATH=@loader_path", args("macos-arm64"))
         self.assertIn("-DCMAKE_INSTALL_RPATH=$ORIGIN", args("linux-arm64"))
-        self.assertIn("-DCMAKE_SHARED_LIBRARY_PREFIX=", args("windows-x86_64"))
+        self.assertNotIn("RPATH", args("windows-x86_64"))
 
     def test_static_vorbis_pc_names_libm_on_linux(self):
         for platform in PLATFORMS:

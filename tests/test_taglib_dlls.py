@@ -18,9 +18,6 @@ class TaglibDllsTest(unittest.TestCase):
         self.assertEqual(self.names(["libtag.dll", "libtag_c.dll", "libzs.dll", "libtag.dll.a"]),
                          ["libtag.dll", "libtag_c.dll"])
 
-    def test_msvc_names(self):
-        self.assertEqual(self.names(["tag.dll", "tag_c.dll"]), ["tag.dll", "tag_c.dll"])
-
 
 if __name__ == "__main__":
     unittest.main()
