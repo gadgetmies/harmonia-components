@@ -26,6 +26,17 @@ _SOURCE_EXCLUDE = {
 _SOURCE_EXCLUDE_SUFFIXES = (".pyc", ".log", ".key", ".seed", ".pem", ".priv", ".private")
 
 
+# TagLib's Windows DLLs as MinGW (lib*.dll) or MSVC builds name them, with or
+# without the SOVERSION suffix the desktop also accepts (taglib_c.py).
+TAGLIB_C_DLLS = ("libtag_c.dll", "tag_c.dll", "libtag_c-2.dll", "tag_c-2.dll")
+TAGLIB_DLLS = ("libtag.dll", "tag.dll", "libtag-2.dll", "tag-2.dll") + TAGLIB_C_DLLS
+
+
+def taglib_dlls(bin_dir: Path) -> List[Path]:
+    """The TagLib DLLs an install put in ``bin_dir``."""
+    return sorted(p for p in bin_dir.glob("*.dll") if p.name.lower() in TAGLIB_DLLS)
+
+
 def _log(msg: str) -> None:
     print(f"[build] {msg}", flush=True)
 
@@ -136,9 +147,15 @@ class Build:
         else:  # taglib
             if osname == "windows":
                 (stage / "bin").mkdir(parents=True)
-                for name in ("tag.dll", "tag_c.dll"):
-                    dst = stage / "bin" / name
-                    shutil.copy2(inst / "bin" / name, dst)
+                # MinGW's CMake names them libtag.dll / libtag_c.dll (MSVC:
+                # tag.dll / tag_c.dll); keep the built names, libtag_c links
+                # libtag by the name it was built with.
+                dlls = taglib_dlls(inst / "bin")
+                if not any(d.name in TAGLIB_C_DLLS for d in dlls):
+                    raise RuntimeError(f"no TagLib C DLL in {inst / 'bin'}: {sorted(p.name for p in (inst / 'bin').iterdir())}")
+                for src in dlls:
+                    dst = stage / "bin" / src.name
+                    shutil.copy2(src, dst)
                     payload.append(dst)
             else:
                 (stage / "lib").mkdir(parents=True)
